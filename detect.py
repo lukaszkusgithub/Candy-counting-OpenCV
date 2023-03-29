@@ -77,6 +77,21 @@ def get_all_candy(img, green=False, yellow=False, purple=False,
 		return dark_image
 
 
+# GET COLOR MASK
+def get_color_mask(all_mms, mask_low, mask_up):
+	hsv_color = cv2.cvtColor(all_mms, cv2.COLOR_BGR2HSV)
+	extract_color = cv2.inRange(hsv_color, mask_low,
+	                            mask_up)
+
+	median_blur = 7
+	extract_color = cv2.medianBlur(extract_color, median_blur)
+	kernel_erode = np.ones((3, 3), np.uint8)
+	extract_color = cv2.erode(extract_color, kernel_erode, iterations=1)
+	color_only = cv2.bitwise_and(all_mms, all_mms,
+	                             mask=extract_color)
+	return [color_only, extract_color]
+
+
 # RESIZE IMAGE
 def resize_image(original_image):
 	width = 720

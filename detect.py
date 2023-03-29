@@ -26,15 +26,14 @@ red_up = np.array([180, 255, 255], np.uint8)
 remove_purple_low = np.array([0, 0, 0], np.uint8)
 remove_purple_up = np.array([255, 205, 215], np.uint8)
 
-
 # DETECT CIRCLES PARAMS
-min_radius = 2
-max_radius = 18
-param_1 = 500
-param_2 = 2.5
-dp = 1
-minDist = 30
-range_size = 3
+MIN_RADIUS = 2
+MAX_RADIUS = 18
+PARAM_1 = 500
+PARAM_2 = 2.5
+DP = 1
+MIN_DIST = 30
+RANGE_SIZE = 3
 
 
 # CHANGE GAMMA
@@ -60,7 +59,7 @@ def increase_brightness(img, value=30):
 
 # GET ONLY MMS
 def get_all_candy(img, green=False, yellow=False, purple=False,
-                red=False):
+                  red=False):
 	dark_image = increase_brightness(img, 250)
 	dark_image = gamma_trans(dark_image, 0.1)
 	dark_image = increase_brightness(dark_image, 0)
@@ -122,27 +121,24 @@ def check_color(color, up, low):
 
 # GET PIXEL COLOR
 def get_color(image, x, y):
-	B = image[x, y][0]
-	G = image[x, y][1]
-	R = image[x, y][2]
-	return cv2.cvtColor(np.uint8([[[B, G, R]]]), cv2.COLOR_BGR2HSV)
+	blue = image[x, y][0]
+	green = image[x, y][1]
+	red = image[x, y][2]
+	return cv2.cvtColor(np.uint8([[[blue, green, red]]]), cv2.COLOR_BGR2HSV)
 
 
 # DETECT CIRCLES
-def detect_circles(mask, dp, minDist, param_1, param_2, min_radius,
+def detect_circles(mask, dp, min_dist, param_1, param_2, min_radius,
                    max_radius, image, low_boundaries, up_boundaries,
                    range_size, img):
-	result = 0
 	try:
 		minus_counter = 0
 		circles = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, dp,
-		                           minDist,
+		                           min_dist,
 		                           param1=param_1, param2=param_2,
 		                           minRadius=min_radius,
 		                           maxRadius=max_radius)
 		circles = np.uint16(np.around(circles))
-
-		in_range = False
 
 		for i in circles[0, :]:
 			color_to_check = get_color(image, i[1], i[0])
@@ -153,7 +149,7 @@ def detect_circles(mask, dp, minDist, param_1, param_2, min_radius,
 			for z in range(-range_size, range_size):
 				for k in range(-range_size, range_size):
 					in_range = check_color(color_to_check, low_boundaries,
-					            up_boundaries)
+					                       up_boundaries)
 					color_to_check = get_color(image, i[1] + k, i[0] + z)
 					if in_range:
 						break
@@ -168,10 +164,40 @@ def detect_circles(mask, dp, minDist, param_1, param_2, min_radius,
 				cv2.circle(img, (i[0], i[1]), 2, (0, 0, 255), 1)
 
 		result = len(circles[0]) - minus_counter
-
 	except:
 		result = 0
+
 	return result
+
+
+# GET COUNT
+def get_count(color_only, extract_color, mask_low, mask_up, value=120,
+              fill_threshold=False):
+	cricles = detect_circles(extract_color, DP, MIN_DIST, PARAM_1, PARAM_2,
+	                         MIN_RADIUS,
+	                         MAX_RADIUS, color_only,
+	                         mask_low,
+	                         mask_up,
+	                         RANGE_SIZE, color_only)
+
+	color_gray = cv2.cvtColor(color_only, cv2.COLOR_BGR2GRAY)
+	color_gray = cv2.GaussianBlur(color_gray, (7, 7), 0)
+
+	_, th_contours = cv2.threshold(color_gray, value, 255, cv2.THRESH_BINARY)
+	if fill_threshold:
+		kernel_closing = np.ones((9, 9), np.uint8)
+		th_contours = cv2.morphologyEx(th_contours, cv2.MORPH_CLOSE, kernel_closing)
+	contours, hierarchy = cv2.findContours(th_contours, cv2.RETR_TREE,
+	                                       cv2.CHAIN_APPROX_SIMPLE)
+
+	contours_count = len(contours)
+
+	if contours_count > cricles:
+		count = contours_count
+	else:
+		count = cricles
+
+	return [count, th_contours, contours]
 
 
 def detect(img_path: str) -> Dict[str, int]:

@@ -200,16 +200,71 @@ def get_count(color_only, extract_color, mask_low, mask_up, value=120,
 	return [count, th_contours, contours]
 
 
+# DETECT RED
+def detect_red_candy(img):
+	all_mms = get_all_candy(img, False, False, False, True)
+	no_purple, extract_no_purple = get_color_mask(all_mms, remove_purple_low,
+	                                              remove_purple_up)
+	_, extract_no_purple = cv2.threshold(extract_no_purple, 0, 255,
+	                                     cv2.THRESH_BINARY_INV)
+	kernel_closing = np.ones((21, 21), np.uint8)
+	extract_no_purple = cv2.morphologyEx(extract_no_purple, cv2.MORPH_CLOSE, kernel_closing)
+	extract_no_purple = cv2.dilate(extract_no_purple, (9, 9), iterations=10)
+	all_mms = cv2.bitwise_and(img, img, mask=extract_no_purple)
+
+	red_only_light, extract_red_light = get_color_mask(all_mms, red_low, red_up)
+	red_only_dark, extract_red_dark = get_color_mask(all_mms, red_low_dark,
+	                                                 red_up_dark)
+
+	red_only = cv2.addWeighted(red_only_light, 1, red_only_dark, 1, 0)
+	extract_red = cv2.addWeighted(extract_red_light, 1, extract_red_dark, 1, 0)
+	extract_red = cv2.medianBlur(extract_red, 11)
+
+	red, _, _ = get_count(red_only, extract_red, red_low, red_up, 0,
+	                               True)
+	return red
+
+
+# DETECT GREEN
+def detect_green_candy(img):
+	all_mms = get_all_candy(img, True)
+	green_only, extract_green = get_color_mask(all_mms, green_low, green_up)
+	green, _, _ = get_count(green_only, extract_green, green_low, green_up, 120)
+	return green
+
+
+# DETECT YELLOW
+def detect_yellow_candy(img):
+	all_mms = get_all_candy(img, False, True)
+	yellow_only, extract_yellow = get_color_mask(all_mms, yellow_low, yellow_up)
+	yellow, _, _ = get_count(yellow_only, extract_yellow, yellow_low, yellow_up,
+	                         50)
+	return yellow
+
+
+# DETECT PURPLE
+def detect_purple_candy(img):
+	diff_color = 170
+	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+	h, s, v = cv2.split(hsv)
+	hnew = np.mod(h + diff_color, 180).astype(np.uint8)
+	hsv_new = cv2.merge([hnew, s, v])
+	img_purple = cv2.cvtColor(hsv_new, cv2.COLOR_HSV2BGR)
+	all_mms = get_all_candy(img_purple, False, False, True)
+	purple_only, extract_purple = get_color_mask(all_mms, purple_low, purple_up)
+	purple, _, _ = get_count(purple_only, extract_purple, purple_low, purple_up,
+	                         50)
+	return purple
+
+
 def detect(img_path: str) -> Dict[str, int]:
 	original_image = cv2.imread(img_path, cv2.IMREAD_COLOR)
 	img = resize_image(original_image)
 
-	# TODO: Implement detection method.
-
-	red = 0
-	yellow = 0
-	green = 0
-	purple = 0
+	green = detect_green_candy(img)
+	yellow = detect_yellow_candy(img)
+	red = detect_red_candy(img)
+	purple = detect_purple_candy(img)
 
 	return {'red': red, 'yellow': yellow, 'green': green, 'purple': purple}
 

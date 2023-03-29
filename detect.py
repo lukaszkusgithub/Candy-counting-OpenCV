@@ -27,6 +27,16 @@ remove_purple_low = np.array([0, 0, 0], np.uint8)
 remove_purple_up = np.array([255, 205, 215], np.uint8)
 
 
+# DETECT CIRCLES PARAMS
+min_radius = 2
+max_radius = 18
+param_1 = 500
+param_2 = 2.5
+dp = 1
+minDist = 30
+range_size = 3
+
+
 # CHANGE GAMMA
 def gamma_trans(img, gamma):
 	gamma_table = [np.power(x / 255.0, gamma) * 255.0 for x in range(256)]
@@ -98,6 +108,70 @@ def resize_image(original_image):
 	height = int(original_image.shape[0] * width / original_image.shape[1])
 	dim = (width, height)
 	return cv2.resize(original_image, dim, interpolation=cv2.INTER_AREA)
+
+
+# CHECK PIXELS COLORS
+def check_color(color, up, low):
+	if color[0][0][0] == color[0][0][1] == color[0][0][2] == 0:
+		if not low[0] < color[0][0][0] < up[0]:
+			if not low[1] < color[0][0][1] < up[1]:
+				if not low[2] < color[0][0][2] < up[2]:
+					return False
+	return True
+
+
+# GET PIXEL COLOR
+def get_color(image, x, y):
+	B = image[x, y][0]
+	G = image[x, y][1]
+	R = image[x, y][2]
+	return cv2.cvtColor(np.uint8([[[B, G, R]]]), cv2.COLOR_BGR2HSV)
+
+
+# DETECT CIRCLES
+def detect_circles(mask, dp, minDist, param_1, param_2, min_radius,
+                   max_radius, image, low_boundaries, up_boundaries,
+                   range_size, img):
+	result = 0
+	try:
+		minus_counter = 0
+		circles = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, dp,
+		                           minDist,
+		                           param1=param_1, param2=param_2,
+		                           minRadius=min_radius,
+		                           maxRadius=max_radius)
+		circles = np.uint16(np.around(circles))
+
+		in_range = False
+
+		for i in circles[0, :]:
+			color_to_check = get_color(image, i[1], i[0])
+
+			in_range = check_color(color_to_check, low_boundaries,
+			                       up_boundaries)
+
+			for z in range(-range_size, range_size):
+				for k in range(-range_size, range_size):
+					in_range = check_color(color_to_check, low_boundaries,
+					            up_boundaries)
+					color_to_check = get_color(image, i[1] + k, i[0] + z)
+					if in_range:
+						break
+				if in_range:
+					break
+
+			if not in_range:
+				minus_counter += 1
+
+			if in_range:
+				cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
+				cv2.circle(img, (i[0], i[1]), 2, (0, 0, 255), 1)
+
+		result = len(circles[0]) - minus_counter
+
+	except:
+		result = 0
+	return result
 
 
 def detect(img_path: str) -> Dict[str, int]:

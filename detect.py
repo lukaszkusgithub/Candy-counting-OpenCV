@@ -4,7 +4,27 @@ from typing import Dict
 
 import click
 import cv2
+import numpy as np
 from tqdm import tqdm
+
+# MASKS
+green_low = np.array([32, 0, 0], np.uint8)
+green_up = np.array([80, 255, 255], np.uint8)
+
+yellow_low = np.array([15, 150, 100], np.uint8)
+yellow_up = np.array([30, 255, 255], np.uint8)
+
+purple_low = np.array([70, 8, 2], np.uint8)
+purple_up = np.array([86, 255, 255], np.uint8)
+
+red_low_dark = np.array([0, 100, 0], np.uint8)
+red_up_dark = np.array([4, 255, 255], np.uint8)
+
+red_low = np.array([75, 100, 0], np.uint8)
+red_up = np.array([180, 255, 255], np.uint8)
+
+remove_purple_low = np.array([0, 0, 0], np.uint8)
+remove_purple_up = np.array([255, 205, 215], np.uint8)
 
 
 def detect(img_path: str) -> Dict[str, int]:
